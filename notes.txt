@@ -1,0 +1,11 @@
+# Install Docker + Docker compose
+sudo apt-get install docker.io
+sudo apt-get install docker-compose docker-compose-plugin
+sudo usermod -aG docker $USER
+sudo systemctl reboot
+sudo systemctl start docker
+sudo systemctl status docker
+sudo systemctl reboot
+sudo service docker restart
+sudo systemctl status docker
+docker run hello-world
