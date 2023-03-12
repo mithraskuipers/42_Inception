@@ -1,28 +1,4 @@
-# VirtualBox
-https://www.virtualbox.org/wiki/Downloads
-
-# Ubuntu Desktop
-https://releases.ubuntu.com/22.04.2/ubuntu-22.04.2-desktop-amd64.iso
-
-(# Ubuntu server)
-(https://releases.ubuntu.com/22.04.2/ubuntu-22.04.2-live-server-amd64.iso)
-
-# VirtualBox configuration
-
-New >
-Name: Ubuntu
-ISO Image: ubuntu-22.04.2-desktop-amd64.iso
-Next
-
-Username: mikuiper
-Password: tijdelijk
-
-Base Memory:	4096
-Processors: 2
-
-Disk Size: 20 GB
-
-# Virtual machine configuration
+#!/bin/bash
 
 sudo apt-get update
 sudo apt-get upgrade -y
@@ -51,20 +27,3 @@ if [ -d "/home/$USER/data/mariadb" ]; then \
 	mkdir /home/$USER/data/mariadb; \
 	echo "mariadb directory created successfully"; \
 fi
-
-
-
-# Install Docker + Docker compose
-
-sudo apt-get install docker.io
-sudo apt-get install docker-compose docker-compose-plugin
-sudo usermod -aG docker $USER
-sudo systemctl reboot
-sudo systemctl start docker
-sudo systemctl status docker
-sudo systemctl reboot
-sudo service docker restart
-sudo systemctl status docker
-docker run hello-world
-
-
