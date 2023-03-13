@@ -1,5 +1,0 @@
-# Docker Compose allows you to define and run more than one container
-# (i.e. multi-container) in your Docker applications. You can save your
-# Docker Compose configuration settings in a docker-compose.yml file. It defines
-# the services, networks, and volumes required by your application.
-

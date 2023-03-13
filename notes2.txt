@@ -1,0 +1,132 @@
+################################################################################
+# Download VirtualBox
+################################################################################
+
+https://www.virtualbox.org/wiki/Downloads
+
+################################################################################
+# Install the virtual machine
+################################################################################
+
+Create Virtual Machine
+
+Name: ubuntu_server
+ISO Image: ubuntu-22.04.2-live-server-amd64.iso
+[Next]
+
+Username: mikuiper
+Password: tijdelijk
+
+Hostname: mikuiper
+
+Keep the rest on the default settings.
+[Next]
+
+Base Memory: 2048
+Processors: 2
+Disk Size: 20 GB
+[Next]
+
+[Finish]
+
+Let it install.
+When you are prompted with a black screen with a red banner:
+English
+[Done] 7x
+
+On the Profile setup page enter whatever you want.
+[Done]
+
+[Continue]
+
+Check: Install OpenSSH server
+Done.
+[Done]
+
+Be patient.
+
+[Reboot now]
+
+################################################################################
+# Configure the virtual machine network settings
+################################################################################
+
+In VirtualBox, right-click on the virtual machine
+Settings > Network > Adapter 1 > Advanced > Port Forwarding
+
+Name	Protocol	Host IP	Host Port	Guest IP	Guest Port
+ssh		TCP					3022					22
+
+################################################################################
+# Connection method 1: Connect via SSH from terminal
+################################################################################
+
+ssh-keygen -f "/home/mkuipers/.ssh/known_hosts" -R "[127.0.0.1]:3022"
+ssh mikuiper@127.0.0.1 -p 3022
+
+################################################################################
+# Connection method 2: Connect via SSH via VSCODE
+################################################################################
+
+F1 > Remote-SSH: Connect to Host...
+ssh mikuiper@127.0.0.1 -p 3022
+
+This will initialize the VS Code Server
+
+################################################################################
+# Extra tools
+################################################################################
+
+sudo apt-get install neofetch
+
+sudo apt-get install snapd ; sudo snap install btop
+
+################################################################################
+# Install Docker
+################################################################################
+
+sudo apt-get update
+sudo apt-get upgrade -y
+sudo apt-get install make curl lsb-release ca-certificates apt-transport-https software-properties-common hostsed -y
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install docker-ce -y
+sudo apt-get update
+sudo apt-get install docker-compose docker-compose-plugin -y
+sudo apt-get update
+sudo rm -rf /var/lib/apt/lists/*
+sudo systemctl start docker
+sudo systemctl reboot
+
+################################################################################
+# Test Docker service
+################################################################################
+
+sudo systemctl status docker
+sudo docker run hello-world
+
+################################################################################
+# Copy over your local Inception folder to virtual machine via SCP
+################################################################################
+
+Open a terminal and browse to your Inception directory.
+Make sure you are not connected via SSH to the virtual machine.
+scp -P 3022 -r 42_Inception/ mikuiper@127.0.0.1:~
+
+################################################################################
+# Docker Compose yaml uitleg
+################################################################################
+
+Docker Compose allows you to define and run more than one container
+(i.e. multi-container) in your Docker applications. You can save your Docker
+Compose configuration settings in a docker-compose.yml file. It defines the
+services, networks, and volumes required by your application.
+
+################################################################################
+# Prepare for running the Makefile
+################################################################################
+
+mkdir -p /home/$USER/docker_container_volumes/wordpress;
+mkdir -p /home/$USER/docker_container_volumes/mariadb;
+
