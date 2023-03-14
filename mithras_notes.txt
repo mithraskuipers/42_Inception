@@ -1,0 +1,340 @@
+################################################################################
+# Download VirtualBox
+################################################################################
+
+https://www.virtualbox.org/wiki/Downloads
+
+################################################################################
+# Install the virtual machine
+################################################################################
+
+Create Virtual Machine
+
+Name: Ubuntu
+ISO Image: ubuntu-22.04.2-desktop-amd64.iso
+Check: Skip Unattended Installation
+[Next]
+
+Base Memory: 4096
+Processors: 2
+[Next]
+
+Disk Size: 20 GB
+[Next]
+
+[Finish]
+
+Now start the virtual machine.
+
+[Install Ubuntu]
+
+[Continue]
+
+[Continue]
+
+[Install Now]
+
+[Continue]
+
+[Continue]
+
+Now enter your desired login credentials.
+
+Check: Log in automatically
+(I chose this for quick debugging and rebooting throughout the project)
+
+[Continue]
+
+It will now first copy over the installation files.
+Then it will install the OS. Be patient.
+While it is installing, you can already do the next network settings step.
+
+################################################################################
+# Install guest additions
+################################################################################
+
+With the virtual machine booted, in the virtualbox taskbar:
+Devices -> Insert Guest Additions CD image...
+cd /media/$USER/VBox_GAs_7.0.6
+sudo bash VBoxLinuxAdditions.run
+sudo systemctl reboot
+
+################################################################################
+# Install ssh server
+################################################################################
+
+sudo apt-get instal openssh-server
+
+################################################################################
+Enable ssh
+On the VM
+################################################################################
+
+sudo nano /etc/ssh/sshd_config
+
+Set "Port" to "42"
+(This is because port 22 is already occupied by ssh of the host machine)
+
+Set "PermitRootLogin" to "yes"
+
+Set "PubkeyAuthentication" to "no"
+
+sudo systemctl restart ssh
+sudo systemctl restart ssh.service
+
+sudo systemctl status ssh
+sudo systemctl status ssh.service
+
+(Confirm that it is indeed listening on port 42)
+
+################################################################################
+Configure firewall for ssh and for website
+On the VM
+################################################################################
+sudo ufw enable
+sudo ufw allow 42
+sudo ufw allow 443
+sudo ufw allow 80
+sudo ufw status
+sudo systemctl reboot
+
+################################################################################
+On the host
+################################################################################
+
+Name	Protocol	HostIP		HostPort	GuestIP		GuestPort
+SSH	TCP				3042				42
+HTTP	TCP				80				80
+HTTPS	TCP				443				443
+
+################################################################################
+SSH into the machine
+On the host
+################################################################################
+
+ssh mikuiper@127.0.0.1 -p 3042
+ssh mikuiper@localhost -p 3042
+
+################################################################################
+# Extra tools
+################################################################################
+
+sudo apt-get install neofetch
+sudo apt-get install snapd ; sudo snap install btop
+sudo apt-get install cowsay
+
+################################################################################
+# Connection method 1: Connect via SSH from terminal
+################################################################################
+
+ssh-keygen -f "/home/mkuipers/.ssh/known_hosts" -R "[127.0.0.1]:3022"
+ssh mikuiper@127.0.0.1 -p 3022
+
+################################################################################
+# Connection method 2: Connect via SSH via VSCODE
+################################################################################
+
+F1 > Remote-SSH: Connect to Host...
+ssh mikuiper@127.0.0.1 -p 3022
+
+This will initialize the VS Code Server
+
+################################################################################
+# Install Docker
+################################################################################
+
+sudo apt-get update
+sudo apt-get upgrade -y
+sudo apt-get install make curl lsb-release ca-certificates apt-transport-https software-properties-common hostsed -y
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo apt-get update
+sudo apt-get install docker-ce -y
+sudo apt-get update
+sudo apt-get install docker-compose docker-compose-plugin -y
+sudo apt-get update
+sudo rm -rf /var/lib/apt/lists/*
+sudo systemctl start docker
+sudo systemctl reboot
+
+################################################################################
+# Test Docker service with hello-world
+################################################################################
+
+sudo systemctl status docker
+sudo docker run hello-world
+
+################################################################################
+On the VM
+################################################################################
+
+sudo usermod -aG docker $USER
+logout
+Log back in
+groups
+(to check if you are added to the "docker" group)
+
+################################################################################
+Test your own webserver
+################################################################################
+
+https://github.com/mithraskuipers/docker_nginx_test.git ~/docker_nginx_test
+cd ~/docker_nginx_test
+sudo docker-compose up -d
+Test the nginx webserver by opening up a browser and going to localhost or http://127.0.0.1
+
+If you do not get to see a webpage with a positive message, something went wrong.
+It means that you might not have opened the ports correctly, or that port 80 is busy with something on the host machine.
+
+################################################################################
+# Create folder structure conform the subject
+# On VM
+################################################################################
+
+Browse to the location where you want the inception project to be stored.
+
+# Set the temporary intraname env variable
+export intraname=mikuiper
+
+Then run:
+
+# Create folders
+mkdir -p ./inception/srcs/requirements/mariadb/conf
+mkdir -p ./inception/srcs/requirements/mariadb/tools
+mkdir -p ./inception/srcs/requirements/nginx/conf
+mkdir -p ./inception/srcs/requirements/nginx/tools
+mkdir -p ./inception/srcs/requirements/wordpress/conf
+mkdir -p ./inception/srcs/requirements/wordpress/tools
+mkdir -p ./inception/srcs/requirements/tools
+mkdir -p ./inception/srcs/requirements/bonus
+
+# Populate the folders
+touch ./inception/Makefile
+touch ./inception/srcs/.env
+touch ./inception/srcs/docker-compose.yml
+touch ./inception/srcs/requirements/mariadb/Dockerfile
+touch ./inception/srcs/requirements/mariadb/conf/create_db.sh
+touch ./inception/srcs/requirements/nginx/Dockerfile
+touch ./inception/srcs/requirements/nginx/conf/nginx.conf
+touch ./inception/srcs/requirements/wordpress/Dockerfile
+touch ./inception/srcs/requirements/wordpress/conf/wp-config-create.sh
+touch ./inception/srcs/requirements/mariadb/.dockerignore
+touch ./inception/srcs/requirements/wordpress/.dockerignore
+touch ./inception/srcs/requirements/mariadb/tools/.gitkeep
+touch ./inception/srcs/requirements/wordpress/tools/.gitkeep
+
+# Populate the files
+echo "DOMAIN_NAME=$intraname.42.fr" > ./inception/srcs/.env
+echo "CERT_=./requirements/tools/$intraname.42.fr.crt" >> ./inception/srcs/.env
+echo "KEY_=./requirements/tools/$intraname.42.fr.key" >> ./inception/srcs/.env
+echo "DB_NAME=wordpress" >> ./inception/srcs/.env
+echo "DB_ROOT=rootpass" >> ./inception/srcs/.env
+echo "DB_USER=wpuser" >> ./inception/srcs/.env
+echo "DB_PASS=wppass" >> ./inception/srcs/.env
+echo "" > ./inception/srcs/requirements/mariadb/tools/.gitkeep
+echo "" > ./inception/srcs/requirements/wordpress/tools/.gitkeep
+echo ".git" > ./inception/srcs/requirements/wordpress/.dockerignore
+echo ".git" > ./inception/srcs/requirements/mariadb/.dockerignore
+echo ".env" >> ./inception/srcs/requirements/mariadb/.dockerignore
+echo ".env" >> ./inception/srcs/requirements/wordpress/.dockerignore
+
+################################################################################
+# 
+# 
+################################################################################
+
+################################################################################
+# 
+# 
+################################################################################
+
+
+################################################################################
+# 
+# 
+################################################################################
+
+
+################################################################################
+# 
+# 
+################################################################################
+
+
+################################################################################
+# 
+# 
+################################################################################
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+################################################################################
+# Copy over your local Inception folder to virtual machine via SCP
+################################################################################
+
+Open a terminal and browse to your Inception directory.
+Make sure you are not connected via SSH to the virtual machine.
+scp -P 3022 -r ~/repos/42_Inception/ mikuiper@127.0.0.1:~
+
+################################################################################
+# Docker Compose yaml uitleg
+################################################################################
+
+Docker Compose allows you to define and run more than one container
+(i.e. multi-container) in your Docker applications. You can save your Docker
+Compose configuration settings in a docker-compose.yml file. It defines the
+services, networks, and volumes required by your application.
+
+################################################################################
+# Prepare for running the Makefile
+################################################################################
+
+mkdir -p /home/$USER/docker_container_volumes/wordpress;
+mkdir -p /home/$USER/docker_container_volumes/mariadb;
+
+################################################################################
+# Run makefile?
+################################################################################
+
+
+################################################################################
+# Make Desktop usable
+################################################################################
+
+sudo apt-get install firefox
+
+################################################################################
+# Running Docker containers + ports
+################################################################################
+
+sudo docker ps -a
+
+################################################################################
+# Find out the virtual machine's ip address
+################################################################################
+
+Look for docker0
+ip addr show docker0
+
