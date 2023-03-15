@@ -1022,20 +1022,66 @@ sudo docker exec -it wordpress php -m
 https://127.0.0.1
 
 
+Site Title: Inception by mikuiper
+Username: mikuiper
+Password: tijdelijk
+Your Email: mikuiper@student.codam.nl
+Check: Discourage search engines from indexing this site
+[Install WordPress]
+[Log In]
+[Log In]
+
+# Update the Makefile
+
+name = inception
+all:
+	@printf "Launch configuration ${name}...\n"
+  @bash srcs/requirements/wordpress/tools/make_dir.sh
+	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d
+
+build:
+	@printf "Building configuration ${name}...\n"
+  @bash srcs/requirements/wordpress/tools/make_dir.sh
+	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d --build
+
+down:
+	@printf "Stopping configuration ${name}...\n"
+	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env down
+
+re: down
+	@printf "Rebuild configuration ${name}...\n"
+	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d --build
+
+clean: down
+	@printf "Cleaning configuration ${name}...\n"
+	@docker system prune -a
+	@sudo rm -rf ~/data/wordpress/*
+	@sudo rm -rf ~/data/mariadb/*
+
+fclean:
+	@printf "Total clean of all configurations docker\n"
+	@docker stop $$(docker ps -qa)
+	@docker system prune --all --force --volumes
+	@docker network prune --force
+	@docker volume prune --force
+	@sudo rm -rf ~/data/wordpress/*
+	@sudo rm -rf ~/data/mariadb/*
+
+.PHONY	: all build down re clean fclean
 
 
 
 
 
+make
+
+https://127.0.0.1/wp-admin/install.php
 
 
-
-
-
-
-
-
-
+When you site is created you can reach it at:
+https://mikuiper.42.fr
+The page you get to see is:
+~/home/wordpress/index.php
 
 
 
