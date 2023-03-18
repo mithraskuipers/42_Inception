@@ -275,10 +275,10 @@ sudo nano ~/inception/srcs/.env
 DOMAIN_NAME=mikuiper.42.fr
 CERT_=./requirements/tools/mikuiper.42.fr.crt
 KEY_=./requirements/tools/mikuiper.42.fr.key
-DB_NAME=wordpress
-DB_ROOT=rootpass
-DB_USER=wpuser
-DB_PASS=wppass
+MARIADB_DB_NAME=wordpress
+MARIADB_ROOT_PASS=rootpass
+MARIADB_USERNAME=wpuser
+MARIADB_USERPASS=wppass
 
 sudo nano ~/inception/srcs/requirements/wordpress/.dockerignore
 .git
@@ -299,38 +299,44 @@ echo "127.0.0.1 $USER.42.fr:80" | sudo tee -a /etc/hosts
 # Now test it out
 http://mikuiper.42.fr
 
+# Test your new domain
+#Go to the cloned docker_nginx_test repository and run
 
-
-
-
-
-
-
+sudo docker-compose down
+sudo docker-compose up -d
 
 # Install a self-signed ssl certificate
 sudo apt update -y
 sudo apt install -y wget
-# curl to retrieve info. about the latest mkcert release
-sudo apt install -y curl
-# libnss3 provides cryptographic functions for SSL, inc. certificate validation
-sudo apt install -y libnss3-tools
 
-# Download, install, and configure mkcert
-# mkcert is a tool for generating locally trusted SSL certificates
-cd
-curl -s https://api.github.com/repos/FiloSottile/mkcert/releases/latest| grep browser_download_url  | grep linux-amd64 | cut -d '"' -f 4 | wget -qi -
-mv mkcert-v*-linux-amd64 mkcert
-chmod a+x mkcert
-sudo mv mkcert /usr/local/bin/
-mkcert --version
 
-# Create key and certificate in tools dir
-cd /home/$USER/inception/srcs/requirements/tools/
-mkcert "$USER.42.fr"
 
-# Change file extension of the certificates to format that nginx can read
-mv "$USER".42.fr-key.pem "$USER".42.fr.key
-mv "$USER".42.fr.pem "$USER".42.fr.crt
+
+Cd
+
+Create a private key for the CA:
+openssl genrsa -out ca.key 4096
+
+Create a self-signed root certificate for the CA:
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 1024 -out ca.crt -subj "/C=FR/ST=Ile-de-France/L=Paris/O=Mikuiper/CN=mikuiper.42.fr"
+
+Create a private key for the domain:
+openssl genrsa -out mikuiper.42.fr.key 2048
+
+Create a CSR for the domain:
+openssl req -new -key mikuiper.42.fr.key -out mikuiper.42.fr.csr -subj "/C=FR/ST=Ile-de-France/L=Paris/O=Mikuiper/CN=mikuiper.42.fr"
+
+Sign the CSR with the CA:
+openssl x509 -req -in mikuiper.42.fr.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out mikuiper.42.fr.crt -days 500 -sha256
+
+mv ca.crt "$USER".42.fr.crt
+mv ca.key "$USER".42.fr.key
+
+
+
+
+
+
 
 ################################################################################
 # Change docker_nginx_test nginx conf for HTTPS
@@ -507,6 +513,7 @@ This means that we do not need the HTTP port (i.e. 80) anymore.
 sudo nano ~/inception/srcs/requirements/nginx/conf/nginx.conf
 
 Replace contents with the following code:
+
 '''
 server {
     listen      443 ssl;
@@ -535,7 +542,6 @@ server {
         fastcgi_param PATH_INFO $fastcgi_path_info;
     }
 }
-
 '''
 
 cp ~/inception/srcs/requirements/tools/* ~/inception/srcs/requirements/nginx/tools/
@@ -589,10 +595,10 @@ services:
       context: .
       dockerfile: requirements/mariadb/Dockerfile
       args:
-        DB_NAME: ${DB_NAME}
-        DB_USER: ${DB_USER}
-        DB_PASS: ${DB_PASS}
-        DB_ROOT: ${DB_ROOT}
+        MARIADB_DB_NAME: ${MARIADB_DB_NAME}
+        MARIADB_USERNAME: ${MARIADB_USERNAME}
+        MARIADB_USERPASS: ${MARIADB_USERPASS}
+        MARIADB_ROOT_PASS: ${MARIADB_ROOT_PASS}
     container_name: mariadb
     ports:
       - "3306:3306"
@@ -605,9 +611,9 @@ services:
       context: .
       dockerfile: requirements/wordpress/Dockerfile
       args:
-        DB_NAME: ${DB_NAME}
-        DB_USER: ${DB_USER}
-        DB_PASS: ${DB_PASS}
+        MARIADB_DB_NAME: ${MARIADB_DB_NAME}
+        MARIADB_USERNAME: ${MARIADB_USERNAME}
+        MARIADB_USERPASS: ${MARIADB_USERPASS}
     container_name: wordpress
     depends_on:
       - mariadb
@@ -665,9 +671,9 @@ sudo nano ~/inception/srcs/requirements/mariadb/Dockerfile
 '''
 FROM alpine:3.16
 
-ARG DB_NAME \
-    DB_USER \
-    DB_PASS
+ARG MARIADB_DB_NAME \
+    MARIADB_USERNAME \
+    MARIADB_USERPASS
 
 RUN apk update && apk add --no-cache mariadb mariadb-client
 
@@ -728,10 +734,10 @@ services:
       context: .
       dockerfile: requirements/mariadb/Dockerfile
       args:
-        DB_NAME: ${DB_NAME}
-        DB_USER: ${DB_USER}
-        DB_PASS: ${DB_PASS}
-        DB_ROOT: ${DB_ROOT}
+        MARIADB_DB_NAME: ${MARIADB_DB_NAME}
+        MARIADB_USERNAME: ${MARIADB_USERNAME}
+        MARIADB_USERPASS: ${MARIADB_USERPASS}
+        MARIADB_ROOT_PASS: ${MARIADB_ROOT_PASS}
     container_name: mariadb
     ports:
       - "3306:3306"
@@ -744,9 +750,9 @@ services:
       context: .
       dockerfile: requirements/wordpress/Dockerfile
       args:
-        DB_NAME: ${DB_NAME}
-        DB_USER: ${DB_USER}
-        DB_PASS: ${DB_PASS}
+        MARIADB_DB_NAME: ${MARIADB_DB_NAME}
+        MARIADB_USERNAME: ${MARIADB_USERNAME}
+        MARIADB_USERPASS: ${MARIADB_USERPASS}
     container_name: wordpress
     depends_on:
       - mariadb
@@ -781,9 +787,9 @@ sudo nano ~/inception/srcs/requirements/mariadb/Dockerfile
 '''
 FROM alpine:3.16
 
-ARG DB_NAME \
-    DB_USER \
-    DB_PASS
+ARG MARIADB_DB_NAME \
+    MARIADB_USERNAME \
+    MARIADB_USERPASS
 
 RUN apk update && apk add --no-cache mariadb mariadb-client
 
@@ -833,9 +839,9 @@ sudo nano ~/inception/srcs/requirements/wordpress/Dockerfile
 '''
 FROM alpine:3.16
 ARG PHP_VERSION=8 \
-    DB_NAME \
-    DB_USER \
-    DB_PASS
+    MARIADB_DB_NAME \
+    MARIADB_USERNAME \
+    MARIADB_USERPASS
 RUN apk update && apk upgrade && apk add --no-cache \
     php${PHP_VERSION} \
     php${PHP_VERSION}-fpm \
@@ -906,10 +912,10 @@ services:
       context: .
       dockerfile: requirements/mariadb/Dockerfile
       args:
-        DB_NAME: ${DB_NAME}
-        DB_USER: ${DB_USER}
-        DB_PASS: ${DB_PASS}
-        DB_ROOT: ${DB_ROOT}
+        MARIADB_DB_NAME: ${MARIADB_DB_NAME}
+        MARIADB_USERNAME: ${MARIADB_USERNAME}
+        MARIADB_USERPASS: ${MARIADB_USERPASS}
+        MARIADB_ROOT_PASS: ${MARIADB_ROOT_PASS}
     container_name: mariadb
     ports:
       - "3306:3306"
@@ -922,9 +928,9 @@ services:
       context: .
       dockerfile: requirements/wordpress/Dockerfile
       args:
-        DB_NAME: ${DB_NAME}
-        DB_USER: ${DB_USER}
-        DB_PASS: ${DB_PASS}
+        MARIADB_DB_NAME: ${MARIADB_DB_NAME}
+        MARIADB_USERNAME: ${MARIADB_USERNAME}
+        MARIADB_USERPASS: ${MARIADB_USERPASS}
     container_name: wordpress
     depends_on:
       - mariadb
@@ -988,9 +994,9 @@ sudo nano ~/inception/srcs/requirements/wordpress/conf/wp-config-create.sh
 if [ ! -f "/var/www/wp-config.php" ]; then
 cat << EOF > /var/www/wp-config.php
 <?php
-define( 'DB_NAME', '${DB_NAME}' );
-define( 'DB_USER', '${DB_USER}' );
-define( 'DB_PASSWORD', '${DB_PASS}' );
+define( 'MARIADB_DB_NAME', '${MARIADB_DB_NAME}' );
+define( 'MARIADB_USERNAME', '${MARIADB_USERNAME}' );
+define( 'MARIADB_USERPASSWORD', '${MARIADB_USERPASS}' );
 define( 'DB_HOST', 'mariadb' );
 define( 'DB_CHARSET', 'utf8' );
 define( 'DB_COLLATE', '' );
