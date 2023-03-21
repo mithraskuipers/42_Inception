@@ -162,10 +162,15 @@ On the host
 
 ssh mikuiper@127.0.0.1 -p 42
 ssh mikuiper@localhost -p 42
+ssh mikuiper@debian -p -42 <- als je debian als hostname had opgegeven tijdens de installatie
 
 ! VOOR HET GEMAK KUN JE NU VERBINDEN VIA SSH. GAAT SNEL SNELLER!!! !
-Als je niet kunt verbinden, controleer even of je in virtual box wel de juiste port forwarding hebt gedaan.
+- Als je niet kunt verbinden, controleer even of je in virtual box wel de juiste port forwarding hebt gedaan.
 Host Port 42, maar ook Guest Port 42.
+- Als je niet kunt verbinden kan dat ook komen door je thuis computer/laptop. Ik moest zelf de Host Port
+zetten op 4242, en de Guest Port op 42. Dit komt omdat port 42 al in gebruik was op mijn thuis laptop.
+Daarna gewoon ssh mikuiper@127.0.0.1 -p 4242 of mikuiper@127.0.0.1 -p 42
+
 
 ################################################################################
 # Connection method 1: Connect via SSH from terminal
@@ -206,18 +211,12 @@ groups
 # Install Docker Compose
 ################################################################################
 
-
 sudo apt-get update
-sudo apt-get install \
-    ca-certificates \
-    curl \
-    gnupg \
-    lsb-release
+sudo apt-get install ca-certificates curl gnupg lsb-release
 sudo mkdir -m 0755 -p /etc/apt/keyrings
 curl -fsSL https://download.docker.com/linux/debian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+$(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 sudo apt-get update
 sudo apt-get install docker-compose
 sudo apt-get install docker-compose-plugin
@@ -248,7 +247,7 @@ Then run:
 
 # Create folder and file structure
 mkdir /home/$USER/inception
-touch /home/$USER/inception/Makefile
+touch /home/$USER/inception/srcs/Makefile
 mkdir /home/$USER/inception/srcs
 touch /home/$USER/inception/srcs/.env
 touch /home/$USER/inception/srcs/docker-compose.yml
@@ -267,6 +266,7 @@ mkdir -p /home/$USER/inception/srcs/requirements/mariadb/tools
 touch /home/$USER/inception/srcs/requirements/mariadb/tools/.gitkeep
 mkdir -p /home/$USER/inception/srcs/requirements/wordpress/tools
 touch /home/$USER/inception/srcs/requirements/wordpress/tools/.gitkeep
+mkdir ~/inception/srcs/requirements/nginx/tools/
 
 # Populate the files
 sudo nano ~/inception/srcs/.env
@@ -289,10 +289,10 @@ sudo nano ~/inception/srcs/requirements/mariadb/.dockerignore
 .env
 
 ################################################################################
-# 
+# NU GAAN WE DE WEBSERVER HTTPS COMPATIBLE MAKEN
 ################################################################################
 
-# Change the local domain
+# Change the local domain on the vm
 echo "127.0.0.1 $USER.42.fr localhost" | sudo tee -a /etc/hosts
 echo "127.0.0.1 $USER.42.fr:80" | sudo tee -a /etc/hosts
 
@@ -309,34 +309,29 @@ sudo docker-compose up -d
 sudo apt update -y
 sudo apt install -y wget
 
+cd
 
-
-
-Cd
-
-Create a private key for the CA:
+# Create a private key for the CA:
 openssl genrsa -out ca.key 4096
 
-Create a self-signed root certificate for the CA:
+# Create a self-signed root certificate for the CA:
 openssl req -x509 -new -nodes -key ca.key -sha256 -days 1024 -out ca.crt -subj "/C=FR/ST=Ile-de-France/L=Paris/O=Mikuiper/CN=mikuiper.42.fr"
 
-Create a private key for the domain:
+# Create a private key for the domain:
 openssl genrsa -out mikuiper.42.fr.key 2048
 
-Create a CSR for the domain:
+# Create a CSR for the domain:
 openssl req -new -key mikuiper.42.fr.key -out mikuiper.42.fr.csr -subj "/C=FR/ST=Ile-de-France/L=Paris/O=Mikuiper/CN=mikuiper.42.fr"
 
-Sign the CSR with the CA:
+# Sign the CSR with the CA:
 openssl x509 -req -in mikuiper.42.fr.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out mikuiper.42.fr.crt -days 500 -sha256
 
 mv ca.crt "$USER".42.fr.crt
 mv ca.key "$USER".42.fr.key
 
-
-
-
-
-
+# Copy the certificate files to the Inception folder. We will use these for enabling https.
+sudo cp "$USER".42.fr.crt /home/mikuiper/inception/srcs/requirements/tools
+sudo cp "$USER".42.fr.key /home/mikuiper/inception/srcs/requirements/tools
 
 ################################################################################
 # Change docker_nginx_test nginx conf for HTTPS
@@ -403,28 +398,30 @@ now has access to the SSL certificate and keyfiles.
 
 cd ~/docker_nginx_test/
 sudo docker-compose down
+
 sudo nano docker-compose.yml
 
 Replace everything with the following:
+# Hier zeggen we dat deze "docker_nginx_test" de certificates mag lezen uit de lokale inception/srcs/requirements folder. Waarom daar? Omdat de certificates daar sowieso moeten komen omdat we uiteindelijk bezig zijn met het Inception project. Tot nu toe is het alleen oefenen en testen geweest. Nu staan i.i.g. de certificates al op de goede plaats.
 
 '''
 version: '3'
 
 services:
-  nginx:
-    # On which Docker image should the service be based
-    image: nginx:stable-alpine
-	# Maps host directory with container directory
-    volumes:
-      - ./public:/var/www/public/
-      - ./nginx/conf.d:/etc/nginx/conf.d/
-      - /home/mikuiper/inception/srcs/requirements/tools:/etc/nginx/ssl/
-    restart: unless-stopped
-	# Maps the host port with the container port 
-    ports:
-      - "80:80"
-      - "443:443"
-    container_name: docker_nginx_test
+    nginx:
+        # On which Docker image should the service be based
+        image: nginx:stable-alpine
+        # Maps host directory with container directory
+        volumes:
+            - ./public:/var/www/public/
+            - ./nginx/conf.d:/etc/nginx/conf.d/
+            - /home/mikuiper/inception/srcs/requirements/tools:/etc/nginx/ssl/
+        restart: unless-stopped
+        # Maps the host port with the container port 
+        ports:
+            - "80:80"
+            - "443:443"
+        container_name: docker_nginx_test
 '''
 
 Save it.
@@ -445,14 +442,181 @@ Click on the on button "Advanced", followed by "Accept the Risk and Continue"
 Now the browser trusts the certificate we created. Our site is now also loaded via ssl.
 Yet, our connection is still not considered to be secure. But that is none of our problems!
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ################################################################################
 INCEPTION START
 ################################################################################
+
+################################################################################
+# Create folder structure conform the subject
+################################################################################
+
+Browse to the location where you want the inception project to be stored.
+
+# Set the temporary intraname env variable
+export intraname=mikuiper
+
+Then run:
+
+# Create folder and file structure
+mkdir /home/$USER/inception
+touch /home/$USER/inception/Makefile
+mkdir /home/$USER/inception/srcs
+touch /home/$USER/inception/srcs/.env
+mkdir -p /home/mikuiper/inception/srcs/requirements/tools
+touch /home/$USER/inception/srcs/docker-compose.yml
+mkdir -p /home/$USER/inception/srcs/requirements/mariadb/conf
+touch /home/$USER/inception/srcs/requirements/mariadb/Dockerfile
+touch /home/$USER/inception/srcs/requirements/mariadb/conf/create_db.sh
+mkdir -p /home/$USER/inception/srcs/requirements/nginx/conf
+mkdir /home/$USER/inception/srcs/requirements/nginx/tools/
+touch /home/$USER/inception/srcs/requirements/nginx/Dockerfile
+touch /home/$USER/inception/srcs/requirements/nginx/conf/nginx.conf
+mkdir -p /home/$USER/inception/srcs/requirements/wordpress/conf
+touch /home/$USER/inception/srcs/requirements/wordpress/Dockerfile
+touch /home/$USER/inception/srcs/requirements/wordpress/conf/wp-config-create.sh
+touch /home/$USER/inception/srcs/requirements/mariadb/.dockerignore
+touch /home/$USER/inception/srcs/requirements/wordpress/.dockerignore
+mkdir -p /home/$USER/inception/srcs/requirements/mariadb/tools
+touch /home/$USER/inception/srcs/requirements/mariadb/tools/.gitkeep
+mkdir -p /home/$USER/inception/srcs/requirements/wordpress/tools
+touch /home/$USER/inception/srcs/requirements/wordpress/tools/.gitkeep
+
+
+################################################################################
+# CREATE A PUBLIC KEY INFRASTRUCTURE (PKI) FOR SECURING NETWORK COMMUNICATION
+################################################################################
+
+cd /home/mikuiper/inception/srcs/requirements/tools
+
+# STEP 1.1
+'''
+We will generate an RSA private key for the certificate authority (CA).
+The private key will be saved as ca.key.
+'''
+
+openssl genrsa -out ca.key 4096
+
+# STEP 1.2
+'''
+Generate a self-signed digital certificate for the CA using the private key generated in the previous step.
+The certificate is signed using the CA's private key. The certificate will be saved as ca.crt.
+'''
+
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 1024 -out ca.crt -subj "/C=FR/ST=Ile-de-France/L=Paris/O=Mikuiper/CN=mikuiper.42.fr"
+
+'''
+Here we request a self-signed X.509 certificate. It is a standard format for digital certificates widely used
+in public key infrastructure (PKI) for securing network communication. This self-signed digital certificate
+contains information about the entity and its public key.
+
+Why want this?
+Well, this way we dont need to involve a 3rd party certificate authority (CA). These self-signed X.509 certificates are useful for testing an application/service that uses SSL/TLS encryption.
+
+What is a self-signed certificate?
+It is a certificate signed by the same entity whose identity it certifies. This means they cannot be validated
+by other parties, making them less secure...
+
+Command explained:
+A new certificate will be created using "-new".
+The private key will not be encrypted with a passphrase via "-nodes".
+We specify which private key will be used for the certificate via "-key".
+The sha256 hashing algorithm used for the certificate is specified via "-sha256".
+The certificate is set to be valid for 1024 days via "-days".
+We specify where the certificate should be saved using "-out".
+The subject of the certificate is specified using "-subj". Here, the subject specifies the country code, state/province, locality/city, organization, and common name. The common name is important. If it does not match the domain name used, the certificate may not be trusted by web browsers. 
+'''
+
+# STEP 2.1
+'''
+Create a RSA private key for the entity that will be using the digital certificate.
+We save the key as mikuiper.42.fr.key. We specified that the key should have a length of 2048 bits.
+'''
+
+openssl genrsa -out mikuiper.42.fr.key 2048
+
+# STEP 2.2
+'''
+Generate a certificate signing request (CSR) for the entity using the RSA private key from the previous step.
+The CSR contains info about the entity and also its public key. It is saved as mikuiper.42.fr.csr.
+Remember: this is only a request. The actual signing still needs to be done.
+'''
+
+openssl req -new -key mikuiper.42.fr.key -out mikuiper.42.fr.csr -subj "/C=FR/ST=Ile-de-France/L=Paris/O=Mikuiper/CN=mikuiper.42.fr"
+
+
+# STEP 2.3
+'''
+Here we sign the CSR from the last step to digital certificate for the entity.
+This is done using by using this CSR (previous step) + the CA's private key (step before the previous step).
+'''
+
+openssl x509 -req -in mikuiper.42.fr.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out mikuiper.42.fr.crt -days 500 -sha256
+
+'''
+Here we generate an X.509 certificate for the domain mikuiper.42.fr that is BASED ON a certificate signing
+request (CSR) that was previously generated and stored in mikuiper.42.fr.csr.
+This command uses a root CA (certificate authority) certificate and key (stored in ca.crt and ca.key) to
+sign the new certificate. -CA specifies the CA certificate file, and -CAkey specifies the CA private key file.
+The generated certificate will be valid for 500 days and we used the SHA-256 hashing algorithm to sign the
+certificate. This is gives stronger security than older hashing algorithms like SHA-1.
+'''
+
+# Sign the CSR with the CA:
+
+mv ca.crt "$USER".42.fr.crt
+mv ca.key "$USER".42.fr.key
+
+########################################
+
+
+
+# Populate the files
+sudo nano /home/mikuiper/inception/srcs/.env
+
+# ORIGINAL (WORKS!)
+DOMAIN_NAME=mikuiper.42.fr
+CERT_= /home/mikuiper/inception/srcs/requirements/tools/mikuiper.42.fr.crt
+KEY_= /home/mikuiper/inception/srcs/requirements/tools/mikuiper.42.fr.key
+MARIADB_DB_NAME=wordpress
+MARIADB_ROOT_PASS=rootpass
+MARIADB_USERNAME=wpuser
+MARIADB_USERPASS=wppass
+
+sudo nano ~/inception/srcs/requirements/wordpress/.dockerignore
+.git
+.env
+
+sudo nano ~/inception/srcs/requirements/mariadb/.dockerignore
+.git
+.env
+
 ################################################################################
 Inception Makefile
 ################################################################################
 
-sudo nano ~/inception/Makefile
+sudo nano ~/inception/srcs/Makefile
 
 '''
 name = inception
@@ -515,6 +679,7 @@ sudo nano ~/inception/srcs/requirements/nginx/conf/nginx.conf
 Replace contents with the following code:
 
 '''
+# TODO: TRY TO ADD COMMENTS OR REWRITE IT!!!!!!!!
 server {
     listen      443 ssl;
     server_name  mikuiper.42.fr www.mikuiper.42.fr;
@@ -544,14 +709,14 @@ server {
 }
 '''
 
-cp ~/inception/srcs/requirements/tools/* ~/inception/srcs/requirements/nginx/tools/
-
-
+# Copy over the certificate files to the Inception nginx folder.
+sudo cp ~/inception/srcs/requirements/tools/* ~/inception/srcs/requirements/nginx/tools/
+sudo chmod 777 /home/mikuiper/inception/srcs/requirements/tools/mikuiper.42.fr.key
+sudo chmod 777 /home/mikuiper/inception/srcs/requirements/tools/mikuiper.42.fr.crt
 
 ################################################################################
 
 ################################################################################
-
 
 sudo nano ~/inception/srcs/requirements/nginx/Dockerfile
 
@@ -560,7 +725,6 @@ FROM alpine:3.16
 RUN	apk update && apk upgrade && apk add --no-cache nginx
 EXPOSE 443
 CMD ["nginx", "-g", "daemon off;"]
-
 '''
 
 ################################################################################
@@ -639,28 +803,9 @@ volumes:
 networks:
     inception:
         driver: bridge
-
-
 '''
 
 Save it.
-
-Turn off the test nginx container.
-
-cd ~/docker_nginx_test
-docker-compose down
-
-cd ~/inception/srcs
-docker-compose up -d
-
-
-################################################################################
-Test!
-################################################################################
-
-Remember we used port 443, which only allows for HTTPS
-https://127.0.0.1
-https://mikuiper.42.fr
 
 ################################################################################
 Inception mariadb
@@ -695,7 +840,6 @@ COPY requirements/mariadb/conf/create_db.sh .
 RUN sh create_db.sh && rm create_db.sh
 USER mysql
 CMD ["/usr/bin/mysqld", "--skip-log-error"]
-
 '''
 
 Save it.
@@ -708,7 +852,6 @@ Database user creation script
 sudo nano ~/inception/srcs/docker-compose.yml
 
 '''
-
 version: '3'
 
 services:
@@ -778,8 +921,6 @@ volumes:
 networks:
     inception:
         driver: bridge
-
-
 '''
 
 sudo nano ~/inception/srcs/requirements/mariadb/Dockerfile
@@ -811,24 +952,9 @@ COPY requirements/mariadb/conf/create_db.sh .
 RUN sh create_db.sh && rm create_db.sh
 USER mysql
 CMD ["/usr/bin/mysqld", "--skip-log-error"]
-
-
 '''
 
 Save it.
-
-################################################################################
-Test!
-################################################################################
-# NOTE DEZE TEST GAAT MOGELIJK NIET LUKKEN! IK HEB VAN ACHTER NAAR VOOR ALLES UPDATED.
-# DE INFO HIERBOVEN KAN DUS VAN TOEPASSING ZIJN OP LATERE STAPPEN.
-
-cd ~/inception/srcs
-sudo docker-compose up -d
-
-sudo docker exec -it mariadb mysql -u root
-
-show databases;
 
 ################################################################################
 Inception WordPress
@@ -874,8 +1000,6 @@ COPY ./requirements/wordpress/conf/wp-config-create.sh .
 RUN sh wp-config-create.sh && rm wp-config-create.sh && \
     chmod -R 0777 wp-content/
 CMD ["/usr/sbin/php-fpm8", "-F"]
-
-
 '''
 
 Save it.
@@ -956,8 +1080,6 @@ volumes:
 networks:
     inception:
         driver: bridge
-
-
 '''
 
 Save it.
@@ -966,20 +1088,13 @@ Save it.
 ?????
 ################################################################################
 
-Voeg toe aan Makefile
+sudo nano ~/inception/srcs/Makefile
 
+Voeg toe:
 '''
 #!/bin/bash
-if [ ! -d "/home/mikuiper/data" ]; then \
-        mkdir -p ~/data/mariadb \
-        mkdir -p ~/data/wordpress \
-fi
+if [ ! -d "/home/mikuiper/data" ]; then mkdir -p ~/data/mariadb ; mkdir -p ~/data/wordpress; fi
 '''
-
-
-sudo chmod +x ~/inception/srcs/requirements/wordpress/tools/make_dir.sh
-
-bash ~/inception/srcs/requirements/wordpress/tools/make_dir.sh
 
 ls ~/data
 
@@ -1013,8 +1128,6 @@ define( 'WP_REDIS_DATABASE', 0 );
 require_once ABSPATH . 'wp-settings.php';
 EOF
 fi
-
-
 '''
 
 Save it.
@@ -1053,16 +1166,15 @@ server {
         fastcgi_param PATH_INFO $fastcgi_path_info;
     }
 }
-
 '''
 
 Save it.
 
-
-# TEST IT
+################################################################################
+DONE!!!!!
+################################################################################
 
 cd ~/inception/srcs
-
 sudo docker-compose down
 sudo docker-compose up -d --build
 
@@ -1070,7 +1182,9 @@ sudo docker exec -it wordpress ps aux | grep 'php'
 sudo docker exec -it wordpress php -v
 sudo docker exec -it wordpress php -m
 
-# SETTING UP WORDPRESS
+################################################################################
+GO TO WORDPRESS CONFIGURATION !!!!!
+################################################################################
 
 https://127.0.0.1
 
