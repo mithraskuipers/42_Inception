@@ -32,3 +32,60 @@ EXPOSE 443
 # daemon off is part of the global nginx configuration.
 
 CMD ["nginx", "-g", "daemon off;"]
+
+################################################################################
+# NGINX CONFIGURATION FILE
+################################################################################
+
+sudo nano /home/mikuiper/inception/srcs/requirements/nginx/conf/nginx.conf
+
+# This is an Nginx server configuration file
+# that defines how the server should handle
+# requests for a specific domain.
+
+# Configure Nginx to listen on port 443 using SSL
+server {
+    listen      443 ssl;
+
+    # Specify the domain name that this server
+    # should handle requests for
+    server_name  <your_nickname>.42.fr www.<your_nickname>.42.fr;
+
+    # Specify the root directory where files
+    # for this server should be served from
+    root    /var/www/;
+
+    # Specify the default index files that should
+    # be used when serving requests for this server
+    index index.php index.html;
+
+    # Specify the SSL certificate and key to use
+    ssl_certificate     /etc/nginx/ssl/<your_nickname>.42.fr.crt;
+    ssl_certificate_key /etc/nginx/ssl/<your_nickname>.42.fr.key;
+
+    # Specify the SSL protocols to use
+    ssl_protocols       TLSv1.2 TLSv1.3;
+
+    # Set the SSL session timeout
+    ssl_session_timeout 10m;
+
+    # Set the keepalive timeout
+    keepalive_timeout 70;
+
+    # Configure how Nginx should handle requests
+    location / {
+        # Try to serve the requested file if it exists,
+        # otherwise fall back to serving index.php or index.html
+        try_files $uri /index.php?$args /index.html;
+
+        # Add headers to the response
+        add_header Last-Modified $date_gmt;
+        add_header Cache-Control 'no-store, no-cache';
+
+        # Disable certain response headers
+        if_modified_since off;
+        expires off;
+        etag off;
+    }
+}
+
