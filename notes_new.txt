@@ -1,0 +1,34 @@
+################################################################################
+# MAAK DE FOLDERSTRUCTUUR AAN IN /HOME/MIKUIPER/INCEPTION
+################################################################################
+
+################################################################################
+# NGINX DOCKERFILE
+################################################################################
+
+sudo nano /home/mikuiper/inception/srcs/requirements/nginx/Dockerfile
+
+'''
+# Which base image for the container
+
+FROM alpine:3.16
+
+# 1. Updates package index of Alpine package manager
+# 2. Upgrades all installed packages to latest version
+# 3. Install nginx. Also prevent caching of package index and
+# installed packages (keep container smaller)
+
+RUN apk update && apk upgrade && apk add --no-cache nginx
+
+# Listen to incoming connections on port 443. Default HTTPS port for web servers
+
+EXPOSE 443
+
+# Command to run when the container starts
+# We run nginx with the arguments -g daemon off.
+# This instructs nginx to run it as a background daemon.
+# so that it runs in the foreground and Docker can keep monitoring it.
+# With -g you can specify a global nginx configuration. So here we say that
+# daemon off is part of the global nginx configuration.
+
+CMD ["nginx", "-g", "daemon off;"]
