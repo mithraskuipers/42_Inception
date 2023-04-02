@@ -1,0 +1,222 @@
+# Just to be sure, delete all docker things
+
+# Stop all running containers
+docker stop $(docker ps -aq)
+
+# Remove all containers
+docker rm $(docker ps -aq)
+
+# Remove all images
+docker rmi $(docker images -q)
+
+# Remove all unused containers/networks/images/volumes
+sudo docker system prune --all --volumes
+
+# Kills all running containers and removes all containers
+docker ps -aq | xargs docker rm -f
+
+
+
+
+
+Maak de Inception mapstructuur aan.
+
+mkdir /home/$USER/inception
+mkdir /home/$USER/inception/srcs
+touch /home/$USER/inception/Makefile
+touch /home/$USER/inception/srcs/.env
+touch /home/$USER/inception/srcs/docker-compose.yml
+mkdir -p /home/$USER/inception/srcs/requirements/mariadb/conf
+mkdir -p /home/$USER/inception/srcs/requirements/tools
+touch /home/$USER/inception/srcs/requirements/mariadb/Dockerfile
+touch /home/$USER/inception/srcs/requirements/mariadb/conf/create_db.sh
+mkdir -p /home/$USER/inception/srcs/requirements/nginx/conf
+touch /home/$USER/inception/srcs/requirements/nginx/Dockerfile
+touch /home/$USER/inception/srcs/requirements/nginx/conf/nginx.conf
+mkdir -p /home/$USER/inception/srcs/requirements/wordpress/conf
+touch /home/$USER/inception/srcs/requirements/wordpress/Dockerfile
+touch /home/$USER/inception/srcs/requirements/wordpress/conf/wp-config-create.sh
+touch /home/$USER/inception/srcs/requirements/mariadb/.dockerignore
+touch /home/$USER/inception/srcs/requirements/wordpress/.dockerignore
+mkdir -p /home/$USER/inception/srcs/requirements/mariadb/tools
+touch /home/$USER/inception/srcs/requirements/mariadb/tools/.gitkeep
+mkdir -p /home/$USER/inception/srcs/requirements/wordpress/tools
+touch /home/$USER/inception/srcs/requirements/wordpress/tools/.gitkeep
+mkdir /home/$USER/inception/srcs/requirements/nginx/tools/
+
+
+
+cd ~/inception/srcs/requirements/tools/
+
+# mkcert
+sudo apt install -y wget curl libnss3-tools
+curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
+chmod +x mkcert-v*-linux-amd64
+sudo cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
+
+
+
+
+# Change local domain
+sudo nano /etc/hosts
+127.0.0.1   mikuiper.42.fr localhost
+
+
+
+
+cd ~/inception/srcs/requirements/tools
+
+# Create key + certificate
+mkcert mikuiper.42.fr
+
+# Change key + certificate in desired formats
+mv mikuiper.42.fr-key.pem mikuiper.42.fr.key
+mv mikuiper.42.fr.pem mikuiper.42.fr.crt
+
+# Copy the key + certificate to nginx folder
+cp ~/inception/srcs/requirements/tools/* ~/inception/srcs/requirements/nginx/tools/
+
+
+# NGINX DOCKERFILE
+
+cd ~/inception/srcs/requirements/nginx/
+nano Dockerfile
+
+
+# Which image we want to deploy for the container
+# TODO MOGELIJK VERKEERDE VERSIE GEKOZEN alpine:3 <----
+
+FROM    alpine:3.16
+# Update list of repositories and install nginx without saving the sources in the cache
+RUN     apk update && apk upgrade && apk add --no-cache nginx
+# Open the port that will be used by the container
+EXPOSE 443
+# Run the configuration file
+CMD ["nginx", "-g", "daemon off;"]
+
+# NGINX CONFIGURATION FILE
+nano ~/inception/srcs/requirements/nginx/conf/nginx.conf
+
+
+
+server {
+	listen	443 ssl;
+	server_name	mikuiper.42.fr www.mikuiper.42.fr;
+	root	/var/www/;
+	index	index.php index.html;
+	ssl_certificate	/etc/nginx/ssl/mikuiper.42.fr.crt;
+	ssl_certificate_key	/etc/nginx/ssl/mikuiper.42.fr.key;
+	ssl_protocols	TLSv1.2 TLSv1.3;
+	keepalive_timeout 70;
+	# Location block applies to /
+	location / {
+		try_files $uri /index.php?$args /index.html;
+		add_header Last-Modified $date_gmt;
+		add_header Cache-Control 'no-store, no-cache';
+		if_modified_since off;
+		expires off;
+		etag off;
+	}
+}
+
+
+
+
+
+
+# TEST PAGE
+mkdir ~/test_page
+nano ~/test_page/index.html
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>test page test page test page</title>
+    <style>
+      img {
+        max-width: 100%;
+        display: block;
+        margin: 0 auto;
+      }
+    </style>
+  </head>
+  <body>
+    <img src="https://i.imgur.com/MkelLaC.gif" alt="Image" />
+  </body>
+</html>
+
+
+
+
+
+
+# DOCKER-COMPOSE
+
+# IMPORTANT: YAML files are indentation sensiive.
+nano ~/inception/srcs/docker-compose.yml
+
+'''
+# Specify version of the Docker Compose file format
+version: '3'
+
+services:
+    nginx:
+        build:
+            context: .
+            dockerfile: requirements/nginx/Dockerfile
+        container_name: nginx
+        ports:
+            - "443:443"
+        volumes:
+            - ./requirements/nginx/conf/:/etc/nginx/http.d/
+            - ./requirements/nginx/tools:/etc/nginx/ssl/
+            - /home/${USER}/test_page:/var/www/
+        restart: always
+'''
+
+OR THIS ONE WITH COMMENTS:
+
+'''
+version: '3'
+
+services:
+    nginx:
+        # Specify the location of the current container's Dockerfile.
+        # Also build context for the current service. The files required to build the Docker image
+        # for the current container should be located in the specified location.
+        build:
+            context: .
+            dockerfile: requirements/nginx/Dockerfile
+        # Specify name for the current container
+        container_name: nginx
+        # Port mapping from host to container
+        ports:
+            - "443:443"
+        volumes:
+            # Mount nginx configuration directory
+            - ./requirements/nginx/conf/:/etc/nginx/http.d/
+            # Mount the nginx SSL directory
+            # This means mount the volume that will be used to share the SSL certificate + key files
+            - ./requirements/nginx/tools:/etc/nginx/ssl/
+            # Mount host directory as root directory for the container
+            - /home/${USER}/test_page:/var/www/
+        # Always restart the container on failure/reboot
+        restart: always
+'''
+
+
+docker-compose up -d
+
+This might give you the following message. Nothing to worry about!
+WARNING: Image for service nginx was built because it did not already exist. To rebuild this image you must use `docker-compose build` or `docker-compose up --build`.
+Creating nginx ... done
+
+# Test it out!
+localhost
+mikuiper.42.fr
+
+Also check that you are automatically redirected to the HTTPS versions of the webserver.
+
+Do not go to https://127.0.0.1, because the image that should be shown in test_page/index.html will
+not be shown. This is because imgur blocks 127.0.0.1 for some reason.
+
