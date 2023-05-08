@@ -15,10 +15,6 @@ sudo docker system prune --all --volumes
 # Kills all running containers and removes all containers
 docker ps -aq | xargs docker rm -f
 
-
-
-
-
 Maak de Inception mapstructuur aan.
 
 mkdir /home/$USER/inception
@@ -44,8 +40,6 @@ mkdir -p /home/$USER/inception/srcs/requirements/wordpress/tools
 touch /home/$USER/inception/srcs/requirements/wordpress/tools/.gitkeep
 mkdir /home/$USER/inception/srcs/requirements/nginx/tools/
 
-
-
 cd ~/inception/srcs/requirements/tools/
 
 # mkcert
@@ -54,15 +48,9 @@ curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
 chmod +x mkcert-v*-linux-amd64
 sudo cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
 
-
-
-
 # Change local domain
 sudo nano /etc/hosts
 127.0.0.1   mikuiper.42.fr localhost
-
-
-
 
 cd ~/inception/srcs/requirements/tools
 
@@ -76,12 +64,10 @@ mv mikuiper.42.fr.pem mikuiper.42.fr.crt
 # Copy the key + certificate to nginx folder
 cp ~/inception/srcs/requirements/tools/* ~/inception/srcs/requirements/nginx/tools/
 
-
 # NGINX DOCKERFILE
 
 cd ~/inception/srcs/requirements/nginx/
 nano Dockerfile
-
 
 # Which image we want to deploy for the container
 # TODO MOGELIJK VERKEERDE VERSIE GEKOZEN alpine:3 <----
@@ -96,31 +82,6 @@ CMD ["nginx", "-g", "daemon off;"]
 
 # NGINX CONFIGURATION FILE
 nano ~/inception/srcs/requirements/nginx/conf/nginx.conf
-
-
-
-server {
-	listen	443 ssl;
-	server_name	mikuiper.42.fr www.mikuiper.42.fr;
-	root	/var/www/;
-	index	index.php index.html;
-	ssl_certificate	/etc/nginx/ssl/mikuiper.42.fr.crt;
-	ssl_certificate_key	/etc/nginx/ssl/mikuiper.42.fr.key;
-	ssl_protocols	TLSv1.2 TLSv1.3;
-	keepalive_timeout 70;
-	# Location block applies to /
-	location / {
-		try_files $uri /index.php?$args /index.html;
-		add_header Last-Modified $date_gmt;
-		add_header Cache-Control 'no-store, no-cache';
-		if_modified_since off;
-		expires off;
-		etag off;
-	}
-}
-
-
-
 
 
 
@@ -144,11 +105,6 @@ nano ~/test_page/index.html
     <img src="https://i.imgur.com/MkelLaC.gif" alt="Image" />
   </body>
 </html>
-
-
-
-
-
 
 # DOCKER-COMPOSE
 
@@ -204,7 +160,6 @@ services:
         restart: always
 '''
 
-
 docker-compose up -d
 
 This might give you the following message. Nothing to worry about!
@@ -219,4 +174,444 @@ Also check that you are automatically redirected to the HTTPS versions of the we
 
 Do not go to https://127.0.0.1, because the image that should be shown in test_page/index.html will
 not be shown. This is because imgur blocks 127.0.0.1 for some reason.
+
+
+################################################################################
+# SSH
+################################################################################
+
+ssh mikuiper@127.0.0.1 -p 4242
+
+################################################################################
+# mariadb > create_db script
+################################################################################
+
+/home/mikuiper/inception/srcs/requirements/mariadb/conf/create_db.sh
+
+#!/bin/bash
+
+# Check if the MySQL data directory exists
+if [ ! -d "/var/lib/mysql/mysql" ]; then
+
+        # Change the ownership of the data directory to the MySQL user
+        chown -R mysql:mysql /var/lib/mysql
+
+        # Initialize the MySQL database
+        mysql_install_db --basedir=/usr --datadir=/var/lib/mysql --user=mysql --rpm
+
+        # Create a temporary file to be used later
+        tfile=`mktemp`
+        if [ ! -f "$tfile" ]; then
+                return 1
+        fi
+fi
+
+# Check if the WordPress database directory exists
+if [ ! -d "/var/lib/mysql/wordpress" ]; then
+
+        # Create a SQL script to create the WordPress database
+        cat << EOF > /tmp/create_db.sql
+USE mysql;
+FLUSH PRIVILEGES;
+DELETE FROM mysql.user WHERE User='';
+DROP DATABASE test;
+DELETE FROM mysql.db WHERE Db='test';
+DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+ALTER USER 'root'@'localhost' IDENTIFIED BY '${DB_ROOT}';
+CREATE DATABASE ${DB_NAME} CHARACTER SET utf8 COLLATE utf8_general_ci;
+CREATE USER '${DB_USER}'@'%' IDENTIFIED by '${DB_PASS}';
+GRANT ALL PRIVILEGES ON wordpress.* TO '${DB_USER}'@'%';
+FLUSH PRIVILEGES;
+EOF
+
+        # Run the SQL script to create the WordPress database
+        /usr/bin/mysqld --user=mysql --bootstrap < /tmp/create_db.sql
+
+        # Remove the temporary file
+        rm -f /tmp/create_db.sql
+fi
+
+################################################################################
+# mariadb > dockerfile
+################################################################################
+
+nano /home/mikuiper/inception/srcs/requirements/mariadb/Dockerfile
+
+# Use Alpine 3.16 as the base image
+FROM alpine:3.16
+
+# Define build-time arguments
+ARG DB_NAME \
+    DB_USER \
+    DB_PASS
+
+# Update the package index and install MariaDB and client libraries
+RUN apk update && apk add --no-cache mariadb mariadb-client
+
+# Create the directory for the MySQL socket and set permissions
+RUN mkdir /var/run/mysqld; \
+    chmod 777 /var/run/mysqld; \
+    # Add configuration to bind to all addresses and disable DNS resolution
+    { echo '[mysqld]'; \
+      echo 'skip-host-cache'; \
+      echo 'skip-name-resolve'; \
+      echo 'bind-address=0.0.0.0'; \
+    } | tee  /etc/my.cnf.d/docker.cnf; \
+    # Enable networking in the main MariaDB config file
+    sed -i "s|skip-networking|skip-networking=0|g" \
+      /etc/my.cnf.d/mariadb-server.cnf
+
+# Initialize the MySQL data directory
+RUN mysql_install_db --user=mysql --datadir=/var/lib/mysql
+
+# Expose port 3306 for incoming connections
+EXPOSE 3306
+
+# Copy the database initialization script and run it
+COPY requirements/mariadb/conf/create_db.sh .
+RUN sh create_db.sh && rm create_db.sh
+
+# Switch to the MySQL user and start the server
+USER mysql
+CMD ["/usr/bin/mysqld", "--skip-log-error"]
+
+################################################################################
+# update docker-compose [mariadb]
+################################################################################
+
+version: '3'
+
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: requirements/nginx/Dockerfile
+    container_name: nginx
+#    depends_on:
+#      - wordpress
+    ports:
+      - "443:443"
+    volumes:
+      - ./requirements/nginx/conf/:/etc/nginx/http.d/  # Mount the nginx configuration files
+      - ./requirements/nginx/tools:/etc/nginx/ssl/      # Mount SSL certificates
+      - /home/${USER}/simple_docker_nginx_html/public/html:/var/www/  # Mount the public html directory
+    restart: always    # Always restart the container if it exits
+
+  mariadb:
+    build:
+      context: .
+      dockerfile: requirements/mariadb/Dockerfile
+      args:
+        DB_NAME: ${DB_NAME}  # Pass DB_NAME build argument
+        DB_USER: ${DB_USER}  # Pass DB_USER build argument
+        DB_PASS: ${DB_PASS}  # Pass DB_PASS build argument
+        DB_ROOT: ${DB_ROOT}  # Pass DB_ROOT build argument
+    container_name: mariadb
+    ports:
+      - "3306:3306"
+    restart: always    # Always restart the container if it exits
+
+################################################################################
+# Update .env
+################################################################################
+
+nano /home/mikuiper/inception/srcs/.env
+
+DOMAIN_NAME=mikuiper.42.fr
+CERT_=/home/inception/srcs/requirements/tools/mikuiper.42.fr
+KEY_=/home/inception/srcs/requirements/tools/mikuiper.42.fr
+DB_NAME=wordpress
+DB_ROOT=rootpass
+DB_USER=wpuser
+DB_PASS=wppass
+FTP_USR=ftpuser
+FTP_PWD=ftppass
+
+################################################################################
+# Test mariadb container
+################################################################################
+
+docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q) && docker rmi $(docker images -q)
+/home/mikuiper/inception/srcs
+docker compose up -d
+
+docker exec -it mariadb mysql -u root
+
+show databases;
+
+(Now check whether there is an entry named "wordpress" at the bottom of the table)
+(If not, check you .env file)
+(Leave mariadb by entering "exit")
+
+################################################################################
+# [wordpress] wp-config-create script
+################################################################################
+
+nano /home/mikuiper/inception/srcs/requirements/wordpress/conf/wp-config-create.sh
+
+#!bin/sh
+if [ ! -f "/var/www/wp-config.php" ]; then
+cat << EOF > /var/www/wp-config.php
+<?php
+define( 'DB_NAME', '${DB_NAME}' );
+define( 'DB_USER', '${DB_USER}' );
+define( 'DB_PASSWORD', '${DB_PASS}' );
+define( 'DB_HOST', 'mariadb' );
+define( 'DB_CHARSET', 'utf8' );
+define( 'DB_COLLATE', '' );
+define('FS_METHOD','direct');
+\$table_prefix = 'wp_';
+define( 'WP_DEBUG', false );
+if ( ! defined( 'ABSPATH' ) ) {
+define( 'ABSPATH', __DIR__ . '/' );}
+define( 'WP_REDIS_HOST', 'redis' );
+define( 'WP_REDIS_PORT', 6379 );
+define( 'WP_REDIS_TIMEOUT', 1 );
+define( 'WP_REDIS_READ_TIMEOUT', 1 );
+define( 'WP_REDIS_DATABASE', 0 );
+require_once ABSPATH . 'wp-settings.php';
+EOF
+fi
+
+################################################################################
+# [wordpress] make_dir script [called in Makefile]
+################################################################################
+
+nano /home/mikuiper/inception/srcs/requirements/wordpress/conf/make_dir.sh
+
+#!/bin/bash
+if [ ! -d "/home/${USER}/data" ]; then
+        mkdir ~/data
+        mkdir ~/data/mariadb
+        mkdir ~/data/wordpress
+fi
+
+################################################################################
+# [wordpress] dockerfile
+################################################################################
+
+nano /home/mikuiper/inception/srcs/requirements/wordpress/Dockerfile
+
+FROM alpine:3.16
+ARG PHP_VERSION=8 \
+    DB_NAME \
+    DB_USER \
+    DB_PASS
+RUN apk update && apk upgrade && apk add --no-cache \
+    php${PHP_VERSION} \
+    php${PHP_VERSION}-fpm \
+    php${PHP_VERSION}-mysqli \
+    php${PHP_VERSION}-json \
+    php${PHP_VERSION}-curl \
+    php${PHP_VERSION}-dom \
+    php${PHP_VERSION}-exif \
+    php${PHP_VERSION}-fileinfo \
+    php${PHP_VERSION}-mbstring \
+    php${PHP_VERSION}-openssl \
+    php${PHP_VERSION}-xml \
+    php${PHP_VERSION}-zip \
+    php${PHP_VERSION}-redis \
+    wget \
+    unzip && \
+    sed -i "s|listen = 127.0.0.1:9000|listen = 9000|g" \
+      /etc/php8/php-fpm.d/www.conf && \
+    sed -i "s|;listen.owner = nobody|listen.owner = nobody|g" \
+      /etc/php8/php-fpm.d/www.conf && \
+    sed -i "s|;listen.group = nobody|listen.group = nobody|g" \
+      /etc/php8/php-fpm.d/www.conf && \
+    rm -f /var/cache/apk/*
+WORKDIR /var/www
+RUN wget https://wordpress.org/latest.zip && \
+    unzip latest.zip && \
+    cp -rf wordpress/* . && \
+    rm -rf wordpress latest.zip
+COPY ./requirements/wordpress/conf/wp-config-create.sh .
+RUN sh wp-config-create.sh && rm wp-config-create.sh && \
+    chmod -R 0777 wp-content/
+CMD ["/usr/sbin/php-fpm8", "-F"]
+
+################################################################################
+# Update docker compose [wordpress]
+################################################################################
+
+nano /home/mikuiper/inception/srcs/docker-compose.yml
+
+version: '3'
+
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: requirements/nginx/Dockerfile
+    container_name: nginx
+#    depends_on:
+#      - wordpress
+    ports:
+      - "443:443"
+    volumes:
+      - ./requirements/nginx/conf/:/etc/nginx/http.d/  # Mount the nginx configuration files
+      - ./requirements/nginx/tools:/etc/nginx/ssl/      # Mount SSL certificates
+      - /home/${USER}/simple_docker_nginx_html/public/html:/var/www/  # Mount the public html directory
+    restart: always    # Always restart the container if it exits
+
+  mariadb:
+    build:
+      context: .
+      dockerfile: requirements/mariadb/Dockerfile
+      args:
+        DB_NAME: ${DB_NAME}  # Pass DB_NAME build argument
+        DB_USER: ${DB_USER}  # Pass DB_USER build argument
+        DB_PASS: ${DB_PASS}  # Pass DB_PASS build argument
+        DB_ROOT: ${DB_ROOT}  # Pass DB_ROOT build argument
+    container_name: mariadb
+    ports:
+      - "3306:3306"
+    restart: always    # Always restart the container if it exits
+
+	# Define the WordPress service
+	wordpress:
+	# Build the Docker image using the provided Dockerfile
+	build:
+		context: .
+		dockerfile: requirements/wordpress/Dockerfile
+		# Pass in environment variables for the database name, username, and password
+		args:
+		DB_NAME: ${DB_NAME}
+		DB_USER: ${DB_USER}
+		DB_PASS: ${DB_PASS}
+	# Set the name of the container to "wordpress"
+	container_name: wordpress
+	# Specify that this service depends on the "mariadb" service
+	depends_on:
+		- mariadb
+	# Restart the container automatically if it crashes
+	restart: always
+	# Connect the container to the "inception" network
+	networks:
+		- inception
+	# Mount the "wp-volume" volume to the container's /var/www/ directory
+	volumes:
+		- wp-volume:/var/www/
+
+# Define the "wp-volume" volume
+volumes:
+  wp-volume:
+    driver_opts:
+      # Use the "bind" driver to mount a directory on the host machine to the volume
+      o: bind
+      # Specify that the volume is not a Docker-managed volume
+      type: none
+      # Mount the directory /home/${USER}/data/wordpress to the volume
+      device: /home/${USER}/data/wordpress
+
+  # Define the "db-volume" volume (not used in this file)
+  db-volume:
+    driver_opts:
+      o: bind
+      type: none
+      device: /home/${USER}/data/mariadb
+
+# Define the "inception" network
+networks:
+  inception:
+    # Use the "bridge" driver for the network
+    driver: bridge
+
+
+
+
+
+
+
+
+# MAKEFILE
+
+name = inception
+all:
+	@printf "Launch configuration ${name}...\n"
+	@bash srcs/requirements/wordpress/conf/make_dir.sh
+	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d
+
+build:
+	@printf "Building configuration ${name}...\n"
+	@bash srcs/requirements/wordpress/conf/make_dir.sh
+	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d --build
+
+down:
+	@printf "Stopping configuration ${name}...\n"
+	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env down
+
+re:
+	@printf "Rebuild configuration ${name}...\n"
+	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d --build
+
+clean: down
+	@printf "Cleaning configuration ${name}...\n"
+	@docker system prune -a
+	@sudo rm -rf ~/data/wordpress/*
+	@sudo rm -rf ~/data/mariadb/*
+
+# Осторожно! Fclean удаляет все образы Docker которые есть на машине!
+fclean:
+	@printf "Total clean of all configurations docker\n"
+	@docker stop $$(docker ps -qa)
+	@docker system prune --all --force --volumes
+	@docker network prune --force
+	@docker volume prune --force
+	@sudo rm -rf ~/data/wordpress/*
+	@sudo rm -rf ~/data/mariadb/*
+
+.PHONY	: all build down re clean fclean
+
+
+# Change nginx configuration so it only works with .php files
+
+nano /home/mikuiper/inception/srcs/requirements/nginx/conf/nginx.conf
+
+server {
+	listen	443 ssl;
+	server_name	mikuiper.42.fr www.mikuiper.42.fr;
+	root	/var/www/;
+	index	index.php index.html;
+	ssl_certificate	/etc/nginx/ssl/mikuiper.42.fr.crt;
+	ssl_certificate_key	/etc/nginx/ssl/mikuiper.42.fr.key;
+	ssl_protocols	TLSv1.2 TLSv1.3;
+	keepalive_timeout 70;
+	# Location block applies to /
+	location / {
+		try_files $uri /index.php?$args /index.html;
+		add_header Last-Modified $date_gmt;
+		add_header Cache-Control 'no-store, no-cache';
+		if_modified_since off;
+		expires off;
+		etag off;
+	}
+    location ~ \.php$ {
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+        fastcgi_pass wordpress:9000;
+        fastcgi_index index.php;
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }	
+}
+
+
+
+
+docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q) && docker rmi $(docker images -q)
+cd ~/inception/srcs/
+docker-compose up -d --build
+docker exec -it wordpress ps aux | grep 'php'
+
+
+################################################################################
+# Retry docker compose?
+################################################################################
+
+docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q) && docker rmi $(docker images -q)
+
+docker compose up -d
+
+
 
