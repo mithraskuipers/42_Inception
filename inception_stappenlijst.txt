@@ -183,7 +183,7 @@ not be shown. This is because imgur blocks 127.0.0.1 for some reason.
 ssh mikuiper@127.0.0.1 -p 4242
 
 ################################################################################
-# mariadb > create_db script
+# MARIADB: mariadb > create_db script
 ################################################################################
 
 /home/mikuiper/inception/srcs/requirements/mariadb/conf/create_db.sh
@@ -232,7 +232,7 @@ EOF
 fi
 
 ################################################################################
-# mariadb > dockerfile
+# MARIADB: Dockerfile
 ################################################################################
 
 nano /home/mikuiper/inception/srcs/requirements/mariadb/Dockerfile
@@ -276,7 +276,7 @@ USER mysql
 CMD ["/usr/bin/mysqld", "--skip-log-error"]
 
 ################################################################################
-# update docker-compose [mariadb]
+# MARIADB: Docker-compose
 ################################################################################
 
 version: '3'
@@ -312,7 +312,7 @@ services:
     restart: always    # Always restart the container if it exits
 
 ################################################################################
-# Update .env
+# .ENV FILE
 ################################################################################
 
 nano /home/mikuiper/inception/srcs/.env
@@ -328,23 +328,22 @@ FTP_USR=ftpuser
 FTP_PWD=ftppass
 
 ################################################################################
-# Test mariadb container
+# MARIADB: TEST CONTAINER
 ################################################################################
 
 docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q) && docker rmi $(docker images -q)
 /home/mikuiper/inception/srcs
 docker compose up -d
-
 docker exec -it mariadb mysql -u root
-
 show databases;
 
 (Now check whether there is an entry named "wordpress" at the bottom of the table)
 (If not, check you .env file)
-(Leave mariadb by entering "exit")
+exit
+docker compose down
 
 ################################################################################
-# [wordpress] wp-config-create script
+# WORDPRESS: wp-config-create script
 ################################################################################
 
 nano /home/mikuiper/inception/srcs/requirements/wordpress/conf/wp-config-create.sh
@@ -374,7 +373,7 @@ EOF
 fi
 
 ################################################################################
-# [wordpress] make_dir script [called in Makefile]
+# WORDPRESS: make_dir script [called in Makefile]
 ################################################################################
 
 nano /home/mikuiper/inception/srcs/requirements/wordpress/conf/make_dir.sh
@@ -387,7 +386,7 @@ if [ ! -d "/home/${USER}/data" ]; then
 fi
 
 ################################################################################
-# [wordpress] dockerfile
+# WORDPRESS: Dockerfile
 ################################################################################
 
 nano /home/mikuiper/inception/srcs/requirements/wordpress/Dockerfile
@@ -431,108 +430,23 @@ RUN sh wp-config-create.sh && rm wp-config-create.sh && \
 CMD ["/usr/sbin/php-fpm8", "-F"]
 
 ################################################################################
-# Update docker compose [wordpress]
+# WORDPRESS: Update docker compose
 ################################################################################
 
 nano /home/mikuiper/inception/srcs/docker-compose.yml
 
-version: '3'
-
-services:
-  nginx:
-    build:
-      context: .
-      dockerfile: requirements/nginx/Dockerfile
-    container_name: nginx
-#    depends_on:
-#      - wordpress
-    ports:
-      - "443:443"
-    volumes:
-      - ./requirements/nginx/conf/:/etc/nginx/http.d/  # Mount the nginx configuration files
-      - ./requirements/nginx/tools:/etc/nginx/ssl/      # Mount SSL certificates
-      - /home/${USER}/simple_docker_nginx_html/public/html:/var/www/  # Mount the public html directory
-    restart: always    # Always restart the container if it exits
-
-  mariadb:
-    build:
-      context: .
-      dockerfile: requirements/mariadb/Dockerfile
-      args:
-        DB_NAME: ${DB_NAME}  # Pass DB_NAME build argument
-        DB_USER: ${DB_USER}  # Pass DB_USER build argument
-        DB_PASS: ${DB_PASS}  # Pass DB_PASS build argument
-        DB_ROOT: ${DB_ROOT}  # Pass DB_ROOT build argument
-    container_name: mariadb
-    ports:
-      - "3306:3306"
-    restart: always    # Always restart the container if it exits
-
-	# Define the WordPress service
-	wordpress:
-	# Build the Docker image using the provided Dockerfile
-	build:
-		context: .
-		dockerfile: requirements/wordpress/Dockerfile
-		# Pass in environment variables for the database name, username, and password
-		args:
-		DB_NAME: ${DB_NAME}
-		DB_USER: ${DB_USER}
-		DB_PASS: ${DB_PASS}
-	# Set the name of the container to "wordpress"
-	container_name: wordpress
-	# Specify that this service depends on the "mariadb" service
-	depends_on:
-		- mariadb
-	# Restart the container automatically if it crashes
-	restart: always
-	# Connect the container to the "inception" network
-	networks:
-		- inception
-	# Mount the "wp-volume" volume to the container's /var/www/ directory
-	volumes:
-		- wp-volume:/var/www/
-
-# Define the "wp-volume" volume
-volumes:
-  wp-volume:
-    driver_opts:
-      # Use the "bind" driver to mount a directory on the host machine to the volume
-      o: bind
-      # Specify that the volume is not a Docker-managed volume
-      type: none
-      # Mount the directory /home/${USER}/data/wordpress to the volume
-      device: /home/${USER}/data/wordpress
-
-  # Define the "db-volume" volume (not used in this file)
-  db-volume:
-    driver_opts:
-      o: bind
-      type: none
-      device: /home/${USER}/data/mariadb
-
-# Define the "inception" network
-networks:
-  inception:
-    # Use the "bridge" driver for the network
-    driver: bridge
-
-
-
-
-
-
-
-
-# MAKEFILE
+################################################################################
+# Makefile
+################################################################################
 
 name = inception
-all:
+
+all: create_certs
 	@printf "Launch configuration ${name}...\n"
 	@bash srcs/requirements/wordpress/conf/make_dir.sh
 	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d
 
-build:
+build: create_certs
 	@printf "Building configuration ${name}...\n"
 	@bash srcs/requirements/wordpress/conf/make_dir.sh
 	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d --build
@@ -541,7 +455,7 @@ down:
 	@printf "Stopping configuration ${name}...\n"
 	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env down
 
-re:
+re: create_certs
 	@printf "Rebuild configuration ${name}...\n"
 	@docker-compose -f ./srcs/docker-compose.yml --env-file srcs/.env up -d --build
 
@@ -550,8 +464,8 @@ clean: down
 	@docker system prune -a
 	@sudo rm -rf ~/data/wordpress/*
 	@sudo rm -rf ~/data/mariadb/*
+	@bash srcs/requirements/tools/remove_certs.sh
 
-# Осторожно! Fclean удаляет все образы Docker которые есть на машине!
 fclean:
 	@printf "Total clean of all configurations docker\n"
 	@docker stop $$(docker ps -qa)
@@ -560,11 +474,17 @@ fclean:
 	@docker volume prune --force
 	@sudo rm -rf ~/data/wordpress/*
 	@sudo rm -rf ~/data/mariadb/*
+	@bash srcs/requirements/tools/remove_certs.sh
 
 .PHONY	: all build down re clean fclean
 
+create_certs:
+	@bash srcs/requirements/tools/create_certificates.sh
 
+################################################################################
 # Change nginx configuration so it only works with .php files
+################################################################################
+
 
 nano /home/mikuiper/inception/srcs/requirements/nginx/conf/nginx.conf
 
@@ -613,5 +533,6 @@ docker stop $(docker ps -a -q) && docker rm $(docker ps -a -q) && docker rmi $(d
 
 docker compose up -d
 
-
-
+################################################################################
+# 
+################################################################################
