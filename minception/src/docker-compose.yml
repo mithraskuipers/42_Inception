@@ -1,57 +1,61 @@
 version: "3"
 
 services:
+  # MariaDB service for the WordPress database
   mariadb:
     image: mariadb
     container_name: mariadb
-    build: requirements/mariadb/
+    build: requirements/mariadb/  # Dockerfile build context for MariaDB
     restart: always
     volumes:
-      - db:/var/lib/mysql
+      - db:/var/lib/mysql  # Mounting the "db" volume to persist database data
     networks:
-      - lenetwork
+      - inception  # Attaching the service to the "inception" network
     env_file:
-      - .env
+      - .env  # Loading environment variables from the .env file
+
+  # Nginx service for the web server
   nginx:
     image: nginx
     container_name: nginx
-    build: requirements/nginx
+    build: requirements/nginx  # Dockerfile build context for Nginx
     restart: always
     volumes:
-      - wp:/var/www/wordpress
+      - wp:/var/www/wordpress  # Mounting the "wp" volume for WordPress files
     networks:
-      - lenetwork
+      - inception  # Attaching the service to the "inception" network
     depends_on:
-      - wordpress
+      - wordpress  # Depends on the availability of the WordPress service
     ports:
-      - "443:443"
+      - "443:443"  # Exposing port 443 for HTTPS access
+
+  # WordPress service
   wordpress:
     image: wordpress
     container_name: wordpress
-    build: requirements/wordpress
+    build: requirements/wordpress  # Dockerfile build context for WordPress
     restart: always
     volumes:
-      - wp:/var/www/wordpress
+      - wp:/var/www/wordpress  # Mounting the "wp" volume for WordPress files
     networks:
-      - lenetwork
+      - inception  # Attaching the service to the "inception" network
     env_file:
-      - .env
+      - .env  # Loading environment variables from the .env file
 
 volumes:
   db:
     driver: local
-    # name: db
     driver_opts:
       type: none
       o: bind
-      device: /home/mikuiper/data/mariadb
+      device: /home/mikuiper/data/mariadb  # Mounting host directory for MariaDB data
+
   wp:
     driver: local
-    # name: wp
     driver_opts:
       type: none
       o: bind
-      device: /home/mikuiper/data/wordpress
+      device: /home/mikuiper/data/wordpress  # Mounting host directory for WordPress data
 
 networks:
-  lenetwork:
+  inception:  # Creating a network named "inception" for the services to communicate
