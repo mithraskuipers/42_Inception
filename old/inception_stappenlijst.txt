@@ -48,12 +48,6 @@ curl -JLO "https://dl.filippo.io/mkcert/latest?for=linux/amd64"
 chmod +x mkcert-v*-linux-amd64
 sudo cp mkcert-v*-linux-amd64 /usr/local/bin/mkcert
 
-# Change local domain
-sudo nano /etc/hosts
-127.0.0.1   mikuiper.42.fr localhost
-
-cd ~/inception/srcs/requirements/tools
-
 # Create key + certificate
 mkcert mikuiper.42.fr
 
@@ -62,7 +56,12 @@ mv mikuiper.42.fr-key.pem mikuiper.42.fr.key
 mv mikuiper.42.fr.pem mikuiper.42.fr.crt
 
 # Copy the key + certificate to nginx folder
-cp ~/inception/srcs/requirements/tools/* ~/inception/srcs/requirements/nginx/tools/
+cp /home/$USER/inception/srcs/requirements/tools/* /home/$USER/inception/srcs/requirements/nginx/tools/
+
+# Change local domain
+sudo nano /etc/hosts
+127.0.0.1   mikuiper.42.fr localhost
+
 
 # NGINX DOCKERFILE
 

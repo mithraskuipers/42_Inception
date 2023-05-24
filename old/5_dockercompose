@@ -1,0 +1,25 @@
+# Use version 3 of the Docker Compose syntax
+version: '3'
+
+# Define the services (containers) for the application
+services:
+
+  # Nginx web server container
+  nginx:
+    build:
+      context: . # Path to the directory containing the files that are needed for building the Docker image. Here it is the current directory.
+      dockerfile: requirements/nginx/Dockerfile
+    ports:
+      - "443:443"
+    networks:
+      - inception
+    volumes:
+      - ./requirements/nginx/conf/:/etc/nginx/http.d/
+      - ./requirements/nginx/tools:/etc/nginx/ssl/ # mkcert certificates
+    restart: always
+
+# Define the network for the application
+networks:
+  inception:
+    # Use a bridge network to allow communication between containers
+    driver: bridge
