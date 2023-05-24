@@ -10,7 +10,7 @@ define('DB_USER',$_ENV['DB_USER']);
 define('DB_PASSWORD',$_ENV['DB_PASSWORD']);
 define('DB_HOST',$_ENV['DB_HOST']);
 define('DB_CHARSET',$_ENV['DB_CHARSET']);
-define( 'WPMS_ON', false ); # Turn of email feature, otherwise error during build
+define('WPMS_ON', false ); # Turn of email feature, otherwise error during build
 
 /* MySQL database table prefix. */
 $table_prefix = 'wp_';
