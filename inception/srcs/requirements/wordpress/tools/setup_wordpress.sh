@@ -1,8 +1,14 @@
 #!/bin/bash
 
-
-
-
+# Creates a directory for WordPress at /var/www/wordpress.
+# Checks if the wp-config.php file does not exist.
+# If the wp-config.php file does not exist, it performs the following steps:
+# - Downloads the WordPress core using the wp core download command.
+# - Creates the wp-config.php file using the wp config create command, specifying the database name, username, password, host, and configuration file path.
+# - Installs WordPress using the wp core install command, providing the website URL, admin user details, and site title.
+# - Creates a second user using the wp user create command.
+# - Changes the ownership of the WordPress directory to www-data:www-data.
+# Runs the php-fpm7.3 command in the foreground as root.
 
 # Create directory for WordPress
 mkdir -p /var/www/wordpress
@@ -28,5 +34,5 @@ if [ ! -f /var/www/wordpress/wp-config.php ]; then
     chown -R www-data:www-data /var/www/wordpress
 fi
 
-echo "WordPress started"
+echo "Started WordPress.."
 php-fpm7.3 -R -F # Runs on the foreground as root
