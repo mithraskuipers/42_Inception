@@ -12,8 +12,10 @@ all: inception_splash
 	# Create directories for data storage
 	mkdir -p /home/mikuiper/data/mariadb
 	mkdir -p /home/mikuiper/data/wordpress
-	# Start the services using docker-compose
-	docker-compose -f srcs/docker-compose.yml up --build
+	# Start the services using docker-compose in detached mode
+	docker-compose -f srcs/docker-compose.yml up --build -d --remove-orphans
+	@echo "Your website is running!"
+	@echo "You can now use the terminal."
 
 # Stop and kill the services
 kill:
@@ -23,7 +25,6 @@ kill:
 	docker-compose -f srcs/docker-compose.yml kill
 
 # Clean up the environment
-
 clean:
 	# Stop and remove the services
 	docker-compose -f srcs/docker-compose.yml down

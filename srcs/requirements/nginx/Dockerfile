@@ -36,7 +36,7 @@ RUN chmod +x start_nginx.sh
 RUN ln -s /etc/nginx/sites-available/default.conf /etc/nginx/sites-enabled/default.conf
 
 # Generate self-signed SSL certificate
-RUN openssl req -x509 -nodes -newkey rsa:2048 -keyout /etc/nginx/key.key -out /etc/nginx/crt.crt -subj "/CN=mikuiper.42.fr" # Common Name
+RUN openssl req -x509 -nodes -newkey rsa:2048 -keyout /etc/nginx/mikuiper.key -out /etc/nginx/mikuiper.crt -subj "/CN=mikuiper.42.fr" # Common Name
 
 # Expose port 443 for HTTPS access
 EXPOSE 443
