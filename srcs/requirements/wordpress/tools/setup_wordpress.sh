@@ -21,7 +21,7 @@ if [ ! -f /var/www/wordpress/wp-config.php ]; then
     wp core download --allow-root
 
     # Create wp-config.php file
-    wp config create --allow-root --path= --dbname=$MDB_DB_NAME --dbuser=$WP_USER1_LOGIN --dbpass=$WP_USER1_PW --dbhost=mariadb --config-file=/var/www/wordpress/wp-config.php --skip-packages --skip-plugins
+    wp config create --allow-root --path= --dbname=$MDB_DB_NAME --dbuser=$WP_USER1_LOGIN --dbpass=$WP_USER1_PW --dbhost=mariadb --config-file=/var/www/wordpress/wp-config.php --skip-plugins --skip-themes
     echo "Created wp-config.php file"
 
     # Install WordPress
