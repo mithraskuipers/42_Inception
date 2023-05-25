@@ -1,0 +1,78 @@
+# Docker Compose file for WordPress Deployment
+
+# Services Configuration
+#
+# - MariaDB: MariaDB service for the WordPress database.
+# - Nginx: Nginx service for the web server.
+# - WordPress: WordPress service.
+
+version: "3"
+
+services:
+  # MariaDB service for the WordPress database
+  mariadb:
+    image: mariadb
+    container_name: mariadb
+    build: requirements/mariadb/  # Use Dockerfile from requirements/mariadb/
+    restart: always
+    volumes:
+      - db:/var/lib/mysql  # Persist database data with the "db" volume
+    networks:
+      - inception  # Attach to the "inception" network
+    env_file:
+      - ./.env  # Load environment variables from .env file
+
+  # Nginx service for the web server
+  nginx:
+    image: nginx
+    container_name: nginx
+    build: requirements/nginx  # Use Dockerfile from requirements/nginx
+    restart: always
+    volumes:
+      - wp:/var/www/wordpress  # Mount WordPress files with the "wp" volume
+    networks:
+      - inception  # Attach to the "inception" network
+    depends_on:
+      - wordpress  # Depend on the availability of the WordPress service
+    ports:
+      - "443:443"  # Expose port 443 for HTTPS access
+
+  # WordPress service
+  wordpress:
+    image: wordpress
+    container_name: wordpress
+    build: requirements/wordpress  # Use Dockerfile from requirements/wordpress
+    restart: always
+    volumes:
+      - wp:/var/www/wordpress  # Mount WordPress files with the "wp" volume
+    networks:
+      - inception  # Attach to the "inception" network
+    env_file:
+      - ./.env  # Load environment variables from .env file
+
+# Volumes Configuration
+#
+# - db: Volume for persisting MariaDB data.
+# - wp: Volume for persisting WordPress data.
+
+volumes:
+  db:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/mikuiper/data/mariadb  # Mount host directory for MariaDB data
+
+  wp:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/mikuiper/data/wordpress  # Mount host directory for WordPress data
+
+# Networks Configuration
+#
+# - inception: Network for services communication.
+
+networks:
+  inception:

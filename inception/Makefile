@@ -13,25 +13,26 @@ all:
 	mkdir -p /home/mikuiper/data/mariadb
 	mkdir -p /home/mikuiper/data/wordpress
 	# Start the services using docker-compose
-	docker-compose -f src/docker-compose.yml up --build
+	docker-compose -f srcs/docker-compose.yml up --build
 
 # Stop and kill the services
 kill:
 	# Stop the services
-	docker-compose -f src/docker-compose.yml stop
+	docker-compose -f srcs/docker-compose.yml stop
 	# Kill the services
-	docker-compose -f src/docker-compose.yml kill
+	docker-compose -f srcs/docker-compose.yml kill
 
 # Clean up the environment
+
 clean:
 	# Stop and remove the services
-	docker-compose -f src/docker-compose.yml down
+	docker-compose -f srcs/docker-compose.yml down
 	# Remove data directories
 	sudo rm -rf /home/mikuiper/data/
 	# Stop, kill, and remove all containers
-	docker stop $(docker ps -aq) 2>/dev/null && \
-	docker kill $(docker ps -aq) 2>/dev/null && \
-	docker rm $(docker ps -aq) 2>/dev/null && \
+	docker stop $$(docker ps -aq) 2>/dev/null && \
+	docker kill $$(docker ps -aq) 2>/dev/null && \
+	docker rm $$(docker ps -aq) 2>/dev/null || true
 	# Prune images, volumes, and networks
 	docker image prune -a --force --filter "until=24h" 2>/dev/null && \
 	docker volume prune --force 2>/dev/null && \
