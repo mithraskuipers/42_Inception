@@ -8,7 +8,7 @@ LIST_CONTAINERS := $(shell docker ps -a -q)
 LIST_VOLUMES := $(shell docker volume ls -q)
 
 # Default target: create directories and start the services
-all:
+all: inception_splash
 	# Create directories for data storage
 	mkdir -p /home/mikuiper/data/mariadb
 	mkdir -p /home/mikuiper/data/wordpress
@@ -77,3 +77,12 @@ wp-docker:
 # Show WordPress logs
 wp-logs:
 	@docker logs wordpress
+
+inception_splash:
+	@echo "██╗███╗   ██╗ ██████╗███████╗██████╗ ████████╗██╗ ██████╗ ███╗   ██╗"
+	@echo "██║████╗  ██║██╔════╝██╔════╝██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║"
+	@echo "██║██╔██╗ ██║██║     █████╗  ██████╔╝   ██║   ██║██║   ██║██╔██╗ ██║"
+	@echo "██║██║╚██╗██║██║     ██╔══╝  ██╔═══╝    ██║   ██║██║   ██║██║╚██╗██║"
+	@echo "██║██║ ╚████║╚██████╗███████╗██║        ██║   ██║╚██████╔╝██║ ╚████║"
+	@echo "╚═╝╚═╝  ╚═══╝ ╚═════╝╚══════╝╚═╝        ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝"
+	@echo "by Mithras Kuipers                                                  \n";
