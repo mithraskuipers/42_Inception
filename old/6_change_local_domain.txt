@@ -1,3 +1,0 @@
-# Map hostname to intra.42.fr
-sudo nano /etc/hosts
-127.0.0.1   mikuiper.42.fr localhost
