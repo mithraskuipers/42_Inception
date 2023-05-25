@@ -32,7 +32,7 @@ clean:
 	# Stop, kill, and remove all containers
 	docker stop $$(docker ps -aq) 2>/dev/null && \
 	docker kill $$(docker ps -aq) 2>/dev/null && \
-	docker rm $$(docker ps -aq) 2>/dev/null || true
+	docker rm -f $$(docker ps -aq) 2>/dev/null || true
 	# Prune images, volumes, and networks
 	docker image prune -a --force --filter "until=24h" 2>/dev/null && \
 	docker volume prune --force 2>/dev/null && \

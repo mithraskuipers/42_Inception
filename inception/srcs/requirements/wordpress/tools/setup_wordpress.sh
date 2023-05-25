@@ -1,5 +1,9 @@
 #!/bin/bash
 
+
+
+
+
 # Create directory for WordPress
 mkdir -p /var/www/wordpress
 
