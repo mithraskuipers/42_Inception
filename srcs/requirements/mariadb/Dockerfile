@@ -1,13 +1,13 @@
 # Dockerfile for setting up a Debian Buster-based image with MariaDB and modified configuration for network connectivity.
 
 # The code sets up a Docker image based on the Debian Buster distribution.
-# The system is updated and upgraded using apt-get.
-# MariaDB server, MariaDB client, and the nano text editor are installed using apt-get.
-# The setup_mariadb.sh script is copied to the temporary directory /tmp/.
-# The setup_mariadb.sh script is made executable using chmod.
-# The MariaDB configuration file located at /etc/mysql/mariadb.conf.d/50-server.cnf is modified to allow connections from any IP address by replacing the bind-address setting.
-# The "skip-networking" option in the configuration file is uncommented to enable network connections.
-# The entrypoint for the Docker image is set to execute the setup_mariadb.sh script.
+# Updates and upgrades the system using apt-get update and apt-get upgrade -y.
+# Installs the MariaDB server and client using apt-get install -y mariadb-server mariadb-client.
+# Copies the setup_mariadb.sh script to the /tmp/ directory using the COPY command.
+# Makes the setup_mariadb.sh script executable using chmod +x /tmp/setup_mariadb.sh.
+# Modifies the MariaDB configuration file located at /etc/mysql/mariadb.conf.d/50-server.cnf to allow connections from any IP address by replacing the bind-address setting.
+# Uncomment the "skip-networking" option in the configuration file to enable network connections.
+# Sets the entrypoint for the Docker image to execute the setup_mariadb.sh script.
 
 # Base image
 FROM debian:buster
@@ -15,8 +15,8 @@ FROM debian:buster
 # Update and upgrade the system
 RUN apt-get update && apt-get upgrade -y
 
-# Install MariaDB server and client, as well as nano text editor
-RUN apt-get install -y mariadb-server mariadb-client nano
+# Install MariaDB server and client
+RUN apt-get install -y mariadb-server mariadb-client
 
 # Copy setup_mariadb.sh to the temporary directory
 COPY tools/setup_mariadb.sh /tmp/

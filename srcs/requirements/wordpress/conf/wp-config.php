@@ -1,3 +1,11 @@
+/*
+This PHP script sets up configuration variables for connecting to a MySQL database
+in WordPress. It loads environment variables from a .env file using the Dotenv
+library. It defines the database name, username, password, host, character set,
+and table prefix. It also sets the absolute path to the WordPress directory and
+includes the necessary files for WordPress setup.
+*/
+
 <?php
 
 /* Load environment variables from .env file */
