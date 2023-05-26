@@ -24,7 +24,7 @@ services:
 
   # Nginx service for the web server
   nginx:
-    image: nginx
+    image: nginxssl_certificate
     container_name: nginx
     build: requirements/nginx  # Use Dockerfile from requirements/nginx
     restart: always

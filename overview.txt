@@ -1,0 +1,128 @@
+├── Makefile
+└── srcs
+    ├── docker-compose.yml
+    │        This Docker Compose file sets up services for WordPress deployment,
+    │        including MariaDB for the database, Nginx for the web server with SSL
+    │        support and the WordPress service itself. It uses volumes to persist
+    │        data for MariaDB and WordPress, and all services are attached to the
+    │        "inception" network for communication.
+    └── requirements
+        ├── mariadb
+        │   ├── Dockerfile
+        │   │        X
+        │   │        X
+        │   │        X
+        │   └── tools
+        │       └── setup_mariadb.sh
+        │            X
+        │            X
+        │            X
+        ├── nginx
+        │   ├── conf
+        │   │   └── nginx.conf
+        │   │        X
+        │   │        X
+        │   │        X
+        │   ├── Dockerfile
+        │   │        X
+        │   │        X
+        │   │        X
+        │   └── start_nginx.sh
+        │            X
+        │            X
+        │            X
+        └── wordpress
+            ├── conf
+            │   └── wp-config.php
+            │        X
+            │        X
+            │        X
+            ├── Dockerfile
+            │        X
+            │        X
+            │        X
+            └── tools
+                └── setup_wordpress.sh
+                         X
+                         X
+                         X
+
+MISC:
+MariaDB:
+Open-source database system. High-performance, scalable, and reliable.
+Used for web applications and data-driven applications.
+
+WordPress:
+Content management system (CMS). PHP-based. Uses MySQL/MariaDB for data storage.
+User-friendly, customizable, widely used for website development and blogging.
+
+Nginx:
+Web server software. High-performance, lightweight, and scalable.
+Handles HTTP requests, serves web content efficiently.
+
+Q: How does Docker work?
+A: 
+Docker is like a container for your application. This container contains
+everything your application needs to run in a single, self-contained object
+called a Docker image.
+
+Q: How does Docker Compose work?
+A:
+It is a tool that helps you define and manage multi-container Docker applications.
+Docker Compose makes it easy to setup multiple containers and specify their
+configurations and communication between them.
+
+Q:
+What is the difference between a Docker image with and without Docker Compose?
+Without Docker Compose, you work with individual Docker commands to build/run/manage
+containers. You manually specify their configurations, network, and other settings.
+
+With Docker Compose, you have a higher level of abstraction for building/running/managing
+containers. You define the configurations, network, and other settings in a YAML file.
+With this, you can start/stop/manage the entire application with a single command.
+
+Q:
+What is the benefit of Docker compared to VMs?
+1. Efficient w.r.t. resources. When you run multiple Docker containers for a
+single application, all containers share the same host operating system. This
+reduces overhead. This allows you to deploy applications with multiple services
+in an efficient manner.
+2. Fast startup. The containers only include the necessary dependencies and
+libraries for the specific service they are running.
+3. Isolation. Changes in one container do not affect other containers.
+Docker images are created from a Dockerfile, which allows for easy reproduction
+over different environments.
+
+Q: Pertinence of the directory structure required for the project
+A:
+The directory structure is pertinent because it follows some conventions for
+Docker projects. It separates the code into a dedicated directory and provides a
+specific location for Docker related files. It promotes modularity and makes it
+easy to manage the project.
+
+
+
+
+
+# Docker network
+A Docker network allows containers within the Docker environment to communicate
+with each other and with the external world. When you run multiple containers,
+they can be connected together within a virtual network created by Docker.
+
+Docker provides different types of networks, such as bridge networks.
+Bridge networks are the default type and are suitable for single-host envs.
+
+# NGINX with SSL/TLS
+Nginx can be configured to support SSL/TLS encryption. This allows for secure
+HTTPS connections. Now the web server can encrypt the data transmitted between
+the client's browser and the server.
+
+TLS certificates are used to encrypt communication between a client (e.g. web browser)
+and a server. These certificates verify the authenticity and identity of the server,
+ensuring secure communication and protecting sensitive data.
+
+TLS certificates are issued by Certificate Authorities (CAs) and contain
+cryptographic keys that enable encryption/decryption of data transmitted over a 
+network.
+
+# How to login into the database
