@@ -95,13 +95,13 @@ Nginx:
 Web server software. High-performance, lightweight, and scalable.
 Handles HTTP requests, serves web content efficiently.
 
+# Evaluation
 Q: How does Docker work?
 A: 
 Docker is like a container for your application. This container contains
 everything your application needs to run in a single, self-contained object
 called a Docker image.
 
-# Evaluation Q and A
 Q: How does Docker Compose work?
 A:
 It is a tool that helps you define and manage multi-container Docker applications.
