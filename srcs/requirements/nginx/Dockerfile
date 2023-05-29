@@ -21,6 +21,7 @@ FROM debian:buster
 # Update packages and install necessary dependencies
 RUN apt-get update
 RUN apt-get install -y nginx openssl curl
+# Required for running PHP with PHP-FPM (= faster alternative PHP FastCGI implementation)
 RUN apt-get -y install libfcgi0ldbl
 
 # Copy nginx configuration file
